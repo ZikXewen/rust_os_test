@@ -1,3 +1,4 @@
+use spin::Mutex;
 use volatile::Volatile;
 
 #[allow(dead_code)]
@@ -67,7 +68,25 @@ impl Writer {
         }
     }
 
-    pub fn write_string(&mut self, s: &str) {
+    fn new_line(&mut self) {
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer[row][col].read();
+                self.buffer[row - 1][col].write(character);
+            }
+        }
+        for col in 0..BUFFER_WIDTH {
+            self.buffer[BUFFER_HEIGHT - 1][col].write(ScreenChar {
+                ascii_character: b' ',
+                color_code: self.color_code,
+            });
+        }
+        self.column_position = 0;
+    }
+}
+
+impl core::fmt::Write for Writer {
+    fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for byte in s.bytes() {
             match byte {
                 // Printable ascii and '\n'
@@ -75,18 +94,14 @@ impl Writer {
                 _ => self.write_byte(0xFE),
             }
         }
+        Ok(())
     }
-
-    fn new_line(&mut self) {}
 }
-pub fn print_something() {
-    let mut writer = Writer {
+
+lazy_static::lazy_static! {
+    pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
         color_code: ColorCode::new(Color::Yellow, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
-    };
-
-    writer.write_byte(b'H');
-    writer.write_string("ello ");
-    writer.write_string("Wörld!");
+    });
 }
