@@ -123,3 +123,24 @@ pub fn _print(args: core::fmt::Arguments) {
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
 }
+
+#[test_case]
+fn test_println() {
+    println!("test_println");
+}
+
+#[test_case]
+fn test_println_many() {
+    (0..200).for_each(|_| println!("test_println_many"));
+}
+
+#[test_case]
+fn test_println_output() {
+    let s = "A random test string.";
+    println!("{}", s);
+    let writer = WRITER.lock();
+    assert!(s
+        .bytes()
+        .enumerate()
+        .all(|(i, c)| writer.buffer[BUFFER_HEIGHT - 2][i].read().ascii_character == c));
+}
