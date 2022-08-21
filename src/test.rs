@@ -28,12 +28,21 @@ macro_rules! serial_println {
     ($($arg:tt)*) => ($crate::serial_print!("{}\n", format_args!($($arg)*)));
 }
 
-#[cfg(test)]
-pub fn test_runner(tests: &[&dyn Fn()]) {
-    serial_println!("Running {} tests...", tests.len());
-    for test in tests {
-        test();
+pub trait TestFn {
+    fn run(&self);
+}
+impl<T: Fn()> TestFn for T {
+    fn run(&self) {
+        serial_print!("{}...\t", core::any::type_name::<T>());
+        self();
+        serial_println!("[ok]");
     }
+}
+
+#[cfg(test)]
+pub fn test_runner(tests: &[&dyn TestFn]) {
+    serial_println!("Running {} tests...", tests.len());
+    tests.iter().for_each(|x| x.run());
     exit_qemu(QemuExitCode::Success);
 }
 
@@ -57,11 +66,4 @@ fn panic(info: &PanicInfo) -> ! {
     serial_println!("{}", info);
     exit_qemu(QemuExitCode::Failed);
     loop {}
-}
-
-#[test_case]
-fn trivial_assertion() {
-    serial_print!("Trivial assertion... ");
-    assert_eq!(1, 1);
-    serial_println!("[ok]");
 }
